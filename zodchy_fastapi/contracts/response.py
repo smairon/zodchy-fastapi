@@ -53,7 +53,7 @@ class PaginatedResponseModel(QueryResultResponseModel):
 
 
 @dataclasses.dataclass
-class ResponseEvent(zodchy.codex.Event):
+class ResponseEvent(zodchy.codex.cqea.Event):
     payload: typing.Any
 
 
@@ -68,6 +68,6 @@ class ResponseErrorPayload(typing.TypedDict):
 
 
 @dataclasses.dataclass
-class ResponseError(zodchy.codex.Error):
+class ResponseError(zodchy.codex.cqea.Error):
     payload: typing.Any
     status_code: int = 500
