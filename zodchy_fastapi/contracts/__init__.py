@@ -13,3 +13,6 @@ from .response import (
     ResponseEvent,
     ResponseError
 )
+from .tools import (
+    RequestModelAdapter
+)

@@ -1,5 +1,6 @@
 from . import (
     router,
     handlers,
-    contracts
+    contracts,
+    adapters
 )
