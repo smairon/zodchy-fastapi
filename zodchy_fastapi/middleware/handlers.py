@@ -2,39 +2,45 @@ import collections.abc
 
 import fastapi
 
+from .. import contracts
+
 
 def generic_exception_handler(
-    request: fastapi.Request,
+    request: contracts.Request,
     exc: Exception
 ):
-    return fastapi.responses.ORJSONResponse(
-        status_code=500,
-        content={
-            "data": {
-                "code": 500,
-                "message": "Unknown exception",
-                "details": str(exc)
+    return request.app.response_adapter(
+        dict(
+            status_code=500,
+            content={
+                "data": {
+                    "code": 500,
+                    "message": "Unknown exception",
+                    "details": str(exc)
+                }
             }
-        }
+        )
     )
 
 
 def validation_exception_handler(
-    request: fastapi.Request,
+    request: contracts.Request,
     exc: fastapi.exceptions.ValidationException
 ):
     details = {}
     for e in exc.errors():
         details = _merge(details, _nestify(e['loc'], e['msg']))
-    return fastapi.responses.ORJSONResponse(
-        status_code=422,
-        content={
-            "data": {
-                "code": 422,
-                "message": "Validation error",
-                "details": details
+    return request.app.response_adapter(
+        dict(
+            status_code=422,
+            content={
+                "data": {
+                    "code": 422,
+                    "message": "Validation error",
+                    "details": details
+                }
             }
-        }
+        )
     )
 
 

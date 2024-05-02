@@ -1,3 +1,0 @@
-from .query import (
-    QueryAdapter
-)

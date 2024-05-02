@@ -1,5 +1,5 @@
 import typing
-from . import contracts
+from .. import response
 
 
 class ResponseParam(typing.TypedDict):
@@ -19,12 +19,12 @@ class RouteParams(typing.TypedDict, total=False):
 
 
 def response_schema(
-    success_model: type[contracts.response.ResponseModel] | None,
+    success_model: type[response.schema.ResponseModel] | None,
     *error_codes: int
 ):
     _map = {
-        422: contracts.response.ValidationFailResponseModel,
-        500: contracts.response.ErrorResponseModel,
+        422: response.schema.ErrorResponseModel,
+        500: response.schema.ErrorResponseModel,
     }
     return {
         200 if success_model is None else 200: ResponseParam(model=success_model),
