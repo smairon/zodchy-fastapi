@@ -18,7 +18,7 @@ class ErrorResponseData(ResponseData):
     details: dict | None
 
 
-class ResponseModel:
+class ResponseModel(pydantic.BaseModel):
     data: ResponseData
 
 
