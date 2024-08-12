@@ -19,7 +19,8 @@ def generic_exception_handler(
                     "details": str(exc)
                 }
             }
-        )
+        ),
+        None
     )
 
 
@@ -27,7 +28,7 @@ def validation_exception_handler(
     request: contracts.Request,
     exc: fastapi.exceptions.ValidationException
 ):
-    details = {}
+    details: dict = {}
     for e in exc.errors():
         details = _merge(details, _nestify(e['loc'], e['msg']))
     return request.app.response_adapter(
@@ -40,7 +41,8 @@ def validation_exception_handler(
                     "details": details
                 }
             }
-        )
+        ),
+        None
     )
 
 

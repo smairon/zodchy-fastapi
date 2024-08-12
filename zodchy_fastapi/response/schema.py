@@ -1,3 +1,6 @@
+import abc
+import typing
+
 import pydantic
 import fastapi
 
@@ -18,8 +21,8 @@ class ErrorResponseData(ResponseData):
     details: dict | None
 
 
-class ResponseModel(pydantic.BaseModel):
-    data: ResponseData
+class ResponseModel(pydantic.BaseModel, abc.ABC):
+    data: typing.Any
 
 
 class ErrorResponseModel(ResponseModel):
@@ -27,13 +30,12 @@ class ErrorResponseModel(ResponseModel):
 
 
 class ItemResponseModel(ResponseModel):
-    pass
+    data: ResponseData
 
 
 class ListResponseModel(ResponseModel):
-    pass
-
-
-class PaginatedListResponseModel(ResponseModel):
     data: list[ResponseData]
+
+
+class PaginatedListResponseModel(ListResponseModel):
     quantity: int
