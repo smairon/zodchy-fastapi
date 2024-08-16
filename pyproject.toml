@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zodchy-fastapi"
-version = "0.3.5"
+version = "0.3.6"
 description = "Collection of tools to integrate fastapi to zodchy architecture"
 authors = ["Smairon <man@smairon.ru>"]
 readme = "README.md"

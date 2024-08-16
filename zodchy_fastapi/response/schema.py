@@ -21,6 +21,10 @@ class ErrorResponseData(ResponseData):
     details: dict | None
 
 
+class PaginatedListMetaData(ResponseData):
+    quantity: int
+
+
 class ResponseModel(pydantic.BaseModel, abc.ABC):
     data: typing.Any
 
@@ -38,4 +42,4 @@ class ListResponseModel(ResponseModel):
 
 
 class PaginatedListResponseModel(ListResponseModel):
-    quantity: int
+    meta: PaginatedListMetaData
