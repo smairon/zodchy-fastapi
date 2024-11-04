@@ -4,14 +4,14 @@ import collections.abc
 
 from zodchy import codex
 
-from .schema import RequestModel, FilterParam
+from ..schema.request import RequestModel, FilterParam
 
 T = typing.TypeVar('T')
 
 AdapterContract = collections.abc.Callable[[RequestModel, type[T]], T]
 
 
-class Adapter:
+class RequestAdapter:
     def __init__(
         self,
         query_notation_parser: codex.query.NotationParser

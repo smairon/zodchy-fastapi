@@ -2,11 +2,9 @@ import collections.abc
 
 import fastapi
 
-from .. import contracts
-
 
 def generic_exception_handler(
-    request: contracts.Request,
+    request: fastapi.Request,
     exc: Exception
 ):
     return request.app.response_adapter(
@@ -25,24 +23,22 @@ def generic_exception_handler(
 
 
 def validation_exception_handler(
-    request: contracts.Request,
-    exc: fastapi.exceptions.ValidationException
+    request: fastapi.Request,
+    exc: fastapi.exceptions.ValidationException,
+    response_wrapper: type[fastapi.responses.Response] = fastapi.responses.JSONResponse
 ):
     details: dict = {}
     for e in exc.errors():
         details = _merge(details, _nestify(e['loc'], e['msg']))
-    return request.app.response_adapter(
-        dict(
-            status_code=422,
-            content={
-                "data": {
-                    "code": 422,
-                    "message": "Validation error",
-                    "details": details
-                }
+    return response_wrapper(
+        status_code=422,
+        content={
+            "data": {
+                "code": 422,
+                "message": "Validation error",
+                "details": details
             }
-        ),
-        None
+        }
     )
 
 

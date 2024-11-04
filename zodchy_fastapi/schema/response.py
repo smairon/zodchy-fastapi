@@ -1,5 +1,4 @@
 import abc
-import typing
 
 import pydantic
 import fastapi
@@ -26,7 +25,7 @@ class PaginatedListMetaData(ResponseData):
 
 
 class ResponseModel(pydantic.BaseModel, abc.ABC):
-    data: typing.Any
+    data: ResponseData
 
 
 class ErrorResponseModel(ResponseModel):

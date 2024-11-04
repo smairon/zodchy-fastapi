@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zodchy-fastapi"
-version = "0.3.6"
+version = "0.4.0"
 description = "Collection of tools to integrate fastapi to zodchy architecture"
 authors = ["Smairon <man@smairon.ru>"]
 readme = "README.md"
@@ -9,8 +9,8 @@ packages = [{ include = "zodchy_fastapi" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-zodchy = "^0.4.2"
-fastapi = "^0.112.0"
+zodchy = "^0.5.0"
+fastapi = "^0.115.4"
 
 
 [build-system]
