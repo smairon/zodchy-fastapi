@@ -32,5 +32,5 @@ class FieldSetParam(QueryParam):
     pass
 
 
-class RequestModel(pydantic.BaseModel, extra=pydantic.Extra.forbid):
+class RequestModel(pydantic.BaseModel, extra='forbid'):
     pass
