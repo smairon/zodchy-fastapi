@@ -13,7 +13,6 @@ default_access_denied_adapter = lambda r: fastapi.responses.ORJSONResponse(
 class AuthMiddleware(abc.ABC):
     def __init__(
         self,
-        auth_context_registrator: collections.abc.Callable[[fastapi.Request, ...], bool],
         access_denied_response_adapter: collections.abc.Callable[
             [
                 fastapi.Request,
@@ -24,7 +23,6 @@ class AuthMiddleware(abc.ABC):
     ):
         self._public_paths = public_paths
         self._access_denied_response_adapter = access_denied_response_adapter
-        self._auth_context_registrator = auth_context_registrator
 
     @abc.abstractmethod
     async def __call__(self, request: fastapi.Request, call_next):
@@ -48,7 +46,8 @@ class JwtAuthMiddleware(AuthMiddleware):
         ] = default_access_denied_adapter,
         public_paths: list[str] = None,
     ):
-        super().__init__(auth_context_registrator, access_denied_response_adapter, public_paths)
+        super().__init__(access_denied_response_adapter, public_paths)
+        self._auth_context_registrator = auth_context_registrator
         self._jwt_algorithm = jwt_algorithm
 
     async def __call__(self, request: fastapi.Request, call_next) -> fastapi.Response:
@@ -81,14 +80,15 @@ class GatewayAuthMiddleware(AuthMiddleware):
     def __init__(
         self,
         auth_context_registrator: collections.abc.Callable[
-            [fastapi.Request, dict], bool
+            [fastapi.Request], bool
         ],
         access_denied_response_adapter: collections.abc.Callable[
             [fastapi.Request], fastapi.Response
         ] = default_access_denied_adapter,
         public_paths: list[str] = None,
     ):
-        super().__init__(auth_context_registrator, access_denied_response_adapter, public_paths)
+        self._auth_context_registrator = auth_context_registrator
+        super().__init__(access_denied_response_adapter, public_paths)
 
     async def __call__(self, request: fastapi.Request, call_next) -> fastapi.Response:
         if self._is_public_path(request):
