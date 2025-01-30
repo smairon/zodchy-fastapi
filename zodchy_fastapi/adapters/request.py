@@ -68,7 +68,8 @@ class RequestAdapter:
 
     async def __call__(
         self,
-        request_model: RequestModel
+        request_model: RequestModel,
+        **context
     ) -> codex.cqea.Task:
         entry = self._registry.get(request_model.__class__.__name__)
         if entry is None:
@@ -80,7 +81,10 @@ class RequestAdapter:
         if entry.dependency_params:
             async with self._di_container.get_resolver() as resolver:
                 for p in entry.dependency_params:
-                    params[p.name] = await resolver.resolve(p.type)
+                    if context and p.name in context:
+                        params[p.name] = context[p.name]
+                    else:
+                        params[p.name] = await resolver.resolve(p.type)
 
         return entry.executable(**params)
 
