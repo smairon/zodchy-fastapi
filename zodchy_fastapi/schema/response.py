@@ -36,6 +36,10 @@ class ItemResponseModel(ResponseModel):
     data: ResponseData
 
 
+class CreatedResponseModel(ResponseModel):
+    data: ResponseData
+
+
 class ListResponseModel(ResponseModel):
     data: list[ResponseData]
 

@@ -144,11 +144,16 @@ class ResponseAdapter:
     async def __call__(
         self,
         stream: zodchy.codex.cqea.EventStream,
-        response_model_type: type[ResponseModel] | None = None
+        response_model_type: type[ResponseModel] | None = None,
+        desired_event_type: type[zodchy.codex.cqea.Event] | None = None
     ) -> fastapi.responses.Response:
         registry_entry = None
         if response_model_type:
             registry_entry = self._registry.get(response_model_type.__name__)
+            if registry_entry is None and desired_event_type is not None:
+                for _type in response_model_type.__mro__:
+                    if registry_entry := self._registry.get(_type.__name__):
+                        break
             if registry_entry is None:
                 raise Exception(f'No adapter registered for {response_model_type.__name__}')
 
@@ -157,8 +162,14 @@ class ResponseAdapter:
             if isinstance(message, zodchy.codex.cqea.Error):
                 return await self._process_error(message)
             elif isinstance(message, zodchy.codex.cqea.Event):
-                if registry_entry and (domain_param := registry_entry.domain_params.get(message.__class__.__name__)):
-                    domain_params[domain_param.name] = message
+                if desired_event_type is not None:
+                    if type(message) is desired_event_type:
+                        domain_param = next(iter(registry_entry.domain_params.values()), None)
+                        domain_params[domain_param.name] = message
+                else:
+                    if registry_entry and (
+                        domain_param := registry_entry.domain_params.get(message.__class__.__name__)):
+                        domain_params[domain_param.name] = message
 
         if registry_entry:
             return await self._process_events(registry_entry, domain_params)
@@ -222,7 +233,7 @@ class ResponseAdapter:
     @staticmethod
     def _derive_executor_kind(
         executor: EventHandlerContract | ErrorHandlerContract
-    ) -> ExecutorKind:
+    ) -> ExecutorKind | None:
         if inspect.iscoroutinefunction(executor):
             return ExecutorKind.ASYNC
         elif inspect.isfunction(executor):
@@ -232,6 +243,7 @@ class ResponseAdapter:
                 return ExecutorKind.ASYNC
             else:
                 return ExecutorKind.SYNC
+        return None
 
 
 def register_module(
