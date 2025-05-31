@@ -75,7 +75,6 @@ class HandlerEntry:
 class ResponseAdapter:
     def __init__(
         self,
-        response_wrapper: type[fastapi.responses.Response] = fastapi.responses.JSONResponse,
         di_container: zodchy.codex.di.DIContainerContract | None = None,
         default_error_status_code: int = 500,
         default_error_message: str = 'Something happens. To have more information about errors, please adjust error_adapter',
@@ -84,7 +83,6 @@ class ResponseAdapter:
         self._di_container = di_container
         self._default_error_status_code = default_error_status_code
         self._default_error_message = default_error_message
-        self._response_wrapper = response_wrapper
 
     def register_handler(self, handler: EventHandlerContract | ErrorHandlerContract) -> typing.NoReturn:
         if '__skip_handler__' in handler.__dict__:
@@ -190,10 +188,7 @@ class ResponseAdapter:
         else:
             content = registry_entry.executor.callable(**params)
 
-        return self._response_wrapper(
-            status_code=registry_entry.executor.callable.__dict__["__status_code__"],
-            content=content
-        )
+        return content
 
     async def _process_error(self, error: zodchy.codex.cqea.Error):
         for c in error.__class__.__mro__:
@@ -204,20 +199,12 @@ class ResponseAdapter:
                     **await self._build_dependency_params(registry_entry)
                 }
                 if registry_entry.executor.kind is ExecutorKind.ASYNC:
-                    response_data = await registry_entry.executor.callable(**params)
+                    content = await registry_entry.executor.callable(**params)
                 else:
-                    response_data = registry_entry.executor.callable(**params)
+                    content = registry_entry.executor.callable(**params)
 
-                return self._response_wrapper(
-                    status_code=registry_entry.executor.callable.__dict__['__status_code__'],
-                    content={
-                        "data": response_data["data"]
-                    }
-                )
-        return self._response_wrapper(
-            status_code=self._default_error_status_code,
-            content=self._default_error_message
-        )
+                return content
+        return None
 
     async def _build_dependency_params(
         self,
