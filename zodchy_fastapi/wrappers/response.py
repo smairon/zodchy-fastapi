@@ -1,25 +1,65 @@
 import functools
-from ..schema.response import ResponseModel
+from typing import Callable
+from fastapi.responses import Response
+from fastapi import Request
+from ..schema.response import (
+    ResponseModel,
+    InternalServerErrorResponseModel,
+    NotAuthorizedResponseModel,
+    NotFoundResponseModel,
+    ForbiddenResponseModel,
+    ValidationErrorResponseModel,
+    ConflictResponseModel,
+)
+from ..internal import contracts
+from ..adapters.exceptions import exception_response_adapter
+
+type StatusCode = int
 
 
-def response_handler(
-    model: type[ResponseModel] | None = None,
-    status_code: int = 200,
-    skip: bool = False
-):
-    def decorator(func):
-        func.__dict__['__status_code__'] = status_code
+class ResponseAdapterWrapper:
+    def __init__(
+        self,
+        responses: dict[StatusCode, type[ResponseModel]] = {
+            200: None,
+            401: NotAuthorizedResponseModel,
+            404: NotFoundResponseModel,
+            500: InternalServerErrorResponseModel,
+            403: ForbiddenResponseModel,
+            400: ValidationErrorResponseModel,
+            409: ConflictResponseModel,
+        },
+        exception_response_adapter: (
+            Callable[[Request, Exception], Response] | None
+        ) = exception_response_adapter,
+    ):
+        self._responses = responses
+        self._exception_response_adapter = exception_response_adapter
 
-        if model:
-            func.__dict__['__response_model__'] = model
+    def add_response(self, status_code: StatusCode, model: type[ResponseModel]):
+        self._responses[status_code] = model
+        return self
 
-        if skip:
-            func.__dict__['__skip_handler__'] = skip
+    def __call__(
+        self,
+        success_model: type[ResponseModel],
+        success_status_code: StatusCode = 200,
+        error_status_codes: list[StatusCode] = [401, 404, 409, 500],
+    ):
+        def decorator(func):
+            func.__dict__["__response_schema__"] = {
+                success_status_code: success_model
+            } | {code: self._responses[code] for code in error_status_codes}
 
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            return func(*args, **kwargs)
+            @functools.wraps(func)
+            def wrapper(*args, **kwargs):
+                try:
+                    return func(*args, **kwargs)
+                except contracts.ResponseError as e:
+                    if self._exception_response_adapter:
+                        return self._exception_response_adapter(e)
+                    raise e
 
-        return wrapper
+            return wrapper
 
-    return decorator
+        return decorator

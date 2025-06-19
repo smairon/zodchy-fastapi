@@ -3,11 +3,7 @@ import abc
 import pydantic
 import fastapi
 
-Response = fastapi.responses.Response
-
-
-class EmptyResponse(Response):
-    pass
+## ----------------------Response Data Models----------------------
 
 
 class ResponseData(pydantic.BaseModel):
@@ -28,8 +24,38 @@ class ResponseModel(pydantic.BaseModel, abc.ABC):
     data: ResponseData
 
 
+## ----------------------Error Response Models----------------------
+
+
 class ErrorResponseModel(ResponseModel):
     data: ErrorResponseData
+
+
+class NotFoundResponseModel(ErrorResponseModel):
+    data: ErrorResponseData
+
+
+class ConflictResponseModel(ErrorResponseModel):
+    data: ErrorResponseData
+
+
+class ValidationErrorResponseModel(ErrorResponseModel):
+    data: ErrorResponseData
+
+
+class NotAuthorizedResponseModel(ErrorResponseModel):
+    data: ErrorResponseData
+
+
+class ForbiddenResponseModel(ErrorResponseModel):
+    data: ErrorResponseData
+
+
+class InternalServerErrorResponseModel(ErrorResponseModel):
+    data: ErrorResponseData
+
+
+## ----------------------Success Response Models----------------------
 
 
 class ItemResponseModel(ResponseModel):
@@ -46,3 +72,7 @@ class ListResponseModel(ResponseModel):
 
 class PaginatedListResponseModel(ListResponseModel):
     meta: PaginatedListMetaData
+
+
+class EmptyResponseModel(fastapi.responses.Response):
+    pass
