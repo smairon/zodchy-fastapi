@@ -1,4 +1,4 @@
-from . import endpoints, handlers, schema, wrappers, routers, middleware
+from . import endpoints, handlers, schema, wrappers, routers, middleware, adapters
 from .application import Application, TaskExecutorContract
 
 __all__ = [
@@ -10,4 +10,5 @@ __all__ = [
     "wrappers",
     "routers",
     "middleware",
+    "adapters",
 ]
