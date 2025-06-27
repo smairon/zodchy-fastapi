@@ -1,3 +1,3 @@
-from .api import ZodchyRouter
+from .api import ZodchyRouterFactory
 
-__all__ = ['ZodchyRouter']
+__all__ = ['ZodchyRouterFactory']

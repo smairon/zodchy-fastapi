@@ -1,34 +1,72 @@
+import collections.abc
 from typing import Callable, Any
 import inspect
 import fastapi
 
 from ..endpoints import zodchy_endpoint
 from ..internal import contracts
+from ..schema import route
 
 
-class ZodchyRouter(fastapi.APIRouter):
-    def add_zodchy_route(
-        self,
-        path: str,
-        request_adapter: Callable[..., Any],
-        response_adapter: Callable[..., Any],
-        methods: list[str],
-        tags: list[str],
+class ZodchyRouterFactory():
+    def __init__(
+        self, 
+        task_executor: contracts.TaskExecutorContract,
+        routes: collections.abc.Iterable[route.Route] | None = None
     ):
-        response_adapter = self._build_reponse_adapter(response_adapter)
-        request_adapter = self._build_request_adapter(request_adapter)
-        self.add_api_route(
-            path=path,
+        self._task_executor = task_executor
+        self._routes = list(routes) if routes else []
+        
+    def register_routes(self, *routes: route.Route):
+        for route in routes:
+            self._routes.append(route)
+    
+    def get_instance(self, **params) -> fastapi.APIRouter:
+        router = fastapi.APIRouter(**params)
+        for _route in self._routes:
+            if isinstance(_route, route.ZodchyRoute):
+                router = self._register_zodchy_route(router, _route)
+            elif isinstance(_route, route.ApiRoute):
+                router = self._register_api_route(router, _route)
+            else:
+                raise ValueError(f"Invalid route type: {type(_route)}")
+        return router
+    
+    def _register_api_route(self,         
+        router: fastapi.APIRouter,
+        route: route.ApiRoute
+    ) -> fastapi.APIRouter:
+        router.add_api_route(
+            path=route.path,
+            endpoint=route.endpoint,
+            responses=route.responses,
+            methods=route.methods,
+            tags=route.tags,
+            **route.kwargs,
+        )
+        return router
+    
+    def _register_zodchy_route(
+        self,
+        router: fastapi.APIRouter,
+        route: route.ZodchyRoute,
+    ) -> fastapi.APIRouter:
+        response_adapter = self._build_reponse_adapter(route.response_adapter)
+        request_adapter = self._build_request_adapter(route.request_adapter)
+        router.add_api_route(
+            path=route.path,
             endpoint=zodchy_endpoint(
                 request_adapter=request_adapter,
                 response_adapter=response_adapter,
+                task_executor=self._task_executor,
             ),
             responses=self._build_responses(response_adapter),
-            methods=methods,
-            tags=tags,
+            methods=route.methods,
+            tags=route.tags,
+            **route.kwargs,
         )
-        return self
-
+        return router
+        
     def _build_responses(self, response_adapter: contracts.ResponseAdapter):
         responses = response_adapter.executable.__dict__["__response_schema__"]
         return {k: {"model": v} for k, v in responses.items()}

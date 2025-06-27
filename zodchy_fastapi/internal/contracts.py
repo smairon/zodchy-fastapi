@@ -1,7 +1,7 @@
 import dataclasses
-import fastapi
 from typing import Callable, Any
-
+import typing
+import zodchy
 
 class ResponseError(Exception):
     def __init__(
@@ -28,3 +28,10 @@ class ResponseAdapter:
 class RequestAdapter:
     executable: Callable[..., Any]
     params: dict[str, type]
+
+class TaskExecutorContract(typing.Protocol):
+    async def run(
+        self,
+        task: zodchy.codex.cqea.Task,
+        execution_context: dict[str, typing.Any] | None = None,
+    ) -> list[zodchy.codex.cqea.Message]: ...

@@ -3,15 +3,20 @@ from fastapi import Request
 from zodchy_fastapi.schema.response import ResponseModel
 
 from ..internal import contracts
+from ..application import TaskExecutorContract
 
 
-def zodchy_endpoint(request_adapter: contracts.RequestAdapter, response_adapter: contracts.ResponseAdapter):
+def zodchy_endpoint(
+    request_adapter: contracts.RequestAdapter,
+    response_adapter: contracts.ResponseAdapter,
+    task_executor: TaskExecutorContract,
+):
     async def func(request: Request, **kwargs):
         assert hasattr(request, "app") and hasattr(
             request.app, "task_executor"
         ), "Task executor not found"
         task = request_adapter.executable(**kwargs)
-        stream = await request.app.task_executor.run(task)
+        stream = await task_executor.run(task)
         return response_adapter.executable(
             **(
                 {"stream": stream}
