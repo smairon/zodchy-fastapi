@@ -11,8 +11,8 @@ from ..schema.response import (
     ValidationErrorResponseModel,
     ConflictResponseModel,
 )
-from ..internal import contracts
 from ..adapters.exceptions import exception_response_adapter
+from ..contracts import ResponseError
 
 type StatusCode = int
 
@@ -55,7 +55,7 @@ class ResponseAdapterWrapper:
             def wrapper(*args, **kwargs):
                 try:
                     return func(*args, **kwargs)
-                except contracts.ResponseError as e:
+                except ResponseError as e:
                     if self._exception_response_adapter:
                         return self._exception_response_adapter(e)
                     raise e

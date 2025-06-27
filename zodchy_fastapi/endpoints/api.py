@@ -2,13 +2,13 @@ import inspect
 from fastapi import Request
 from zodchy_fastapi.schema.response import ResponseModel
 
-from ..internal import contracts
-from ..application import TaskExecutorContract
+from ..contracts import TaskExecutorContract
+from ..internal.contracts import RequestAdapter, ResponseAdapter
 
 
 def zodchy_endpoint(
-    request_adapter: contracts.RequestAdapter,
-    response_adapter: contracts.ResponseAdapter,
+    request_adapter: RequestAdapter,
+    response_adapter: ResponseAdapter,
     task_executor: TaskExecutorContract,
 ):
     async def func(request: Request, **kwargs):

@@ -1,4 +1,4 @@
-from . import endpoints, handlers, schema, wrappers, routers, middleware, adapters, parsers
+from . import endpoints, handlers, schema, wrappers, routers, middleware, adapters, parsers, contracts
 
 __all__ = [
     "endpoints",
@@ -9,4 +9,5 @@ __all__ = [
     "middleware",
     "adapters",
     "parsers",
+    "contracts",
 ]

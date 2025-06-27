@@ -4,14 +4,15 @@ import inspect
 import fastapi
 
 from ..endpoints import zodchy_endpoint
-from ..internal import contracts
 from ..schema import route
+from ..contracts import TaskExecutorContract
+from ..internal.contracts import ResponseAdapter, RequestAdapter
 
 
 class ZodchyRouterFactory():
     def __init__(
         self, 
-        task_executor: contracts.TaskExecutorContract,
+        task_executor: TaskExecutorContract,
         routes: collections.abc.Iterable[route.Route] | None = None
     ):
         self._task_executor = task_executor
@@ -67,7 +68,7 @@ class ZodchyRouterFactory():
         )
         return router
         
-    def _build_responses(self, response_adapter: contracts.ResponseAdapter):
+    def _build_responses(self, response_adapter: ResponseAdapter):
         responses = response_adapter.executable.__dict__["__response_schema__"]
         return {k: {"model": v} for k, v in responses.items()}
 
@@ -78,14 +79,14 @@ class ZodchyRouterFactory():
             if v.annotation is fastapi.Request:
                 need_request = True
 
-        return contracts.ResponseAdapter(
+        return ResponseAdapter(
             executable=executable,
             need_request=need_request,
         )
 
     def _build_request_adapter(self, executable: Callable[..., Any]):
         sig = inspect.signature(executable)
-        return contracts.RequestAdapter(
+        return RequestAdapter(
             executable=executable,
             params={k: v.annotation for k, v in sig.parameters.items()}
             | {"request": fastapi.Request},

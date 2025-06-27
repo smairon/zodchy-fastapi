@@ -1,6 +1,5 @@
 from zodchy.codex.cqea.messages import Event, Error, EventStream
-
-from ..internal import contracts
+from ..contracts import ResponseError
 
 type HttpCode = int
 
@@ -20,7 +19,7 @@ class PanchoStreamHandler:
         result = None
         for event in stream:
             if isinstance(event, Error):
-                raise contracts.ResponseError(
+                raise ResponseError(
                     http_code=self._get_http_code(event),
                     semantic_code=(
                         event.status_code if hasattr(event, "status_code") else 0
