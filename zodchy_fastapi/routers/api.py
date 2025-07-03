@@ -86,8 +86,15 @@ class ZodchyRouterFactory():
 
     def _build_request_adapter(self, executable: Callable[..., Any]):
         sig = inspect.signature(executable)
+        need_request = False
+        params = {}
+        for v in sig.parameters.values():
+            if v.annotation is fastapi.Request:
+                need_request = True
+                continue
+            params[v.name] = v.annotation
         return RequestAdapter(
             executable=executable,
-            params={k: v.annotation for k, v in sig.parameters.items()}
-            | {"request": fastapi.Request},
+            params=params,
+            need_request=need_request,
         )

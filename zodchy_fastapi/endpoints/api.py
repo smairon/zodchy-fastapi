@@ -13,7 +13,8 @@ def zodchy_endpoint(
     task_executor: TaskExecutorContract,
 ):
     async def func(request: Request, **kwargs):
-        task = request_adapter.executable(**kwargs)
+        params = kwargs | ({"request": request} if request_adapter.need_request else {})
+        task = request_adapter.executable(**params)
         stream = await task_executor.run(task)
         return response_adapter.executable(
             **(

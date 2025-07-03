@@ -12,3 +12,4 @@ class ResponseAdapter:
 class RequestAdapter:
     executable: Callable[..., Any]
     params: dict[str, type]
+    need_request: bool = False
