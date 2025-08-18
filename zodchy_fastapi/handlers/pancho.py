@@ -15,7 +15,7 @@ class PanchoStreamHandler:
         self._default_http_error_code = default_http_error_code
         self._default_error_message = default_error_message
 
-    def __call__(self, stream: EventStream, desired_event: type[Event]) -> Event:
+    def __call__(self, stream: EventStream, *desired_events: type[Event]) -> Event:
         result = None
         for event in stream:
             if isinstance(event, Error):
@@ -31,7 +31,7 @@ class PanchoStreamHandler:
                     ),
                     details=event.details if hasattr(event, "details") else None,
                 )
-            if isinstance(event, desired_event):
+            if isinstance(event, tuple(desired_events)):
                 result = event
         return result
 
