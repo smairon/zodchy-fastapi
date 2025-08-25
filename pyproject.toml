@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "zodchy-fastapi"
-version = "1.2.4"
+version = "1.2.5"
 description = "Collection of tools to integrate fastapi to zodchy architecture"
 authors = ["Smairon <man@smairon.ru>"]
 readme = "README.md"
@@ -9,7 +9,7 @@ packages = [{ include = "zodchy_fastapi" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
-zodchy = "^0.5.4"
+zodchy = "^0"
 fastapi = ">=0.*"
 pyjwt = "^2.10.1"
 
@@ -19,7 +19,7 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.dev-dependencies]
-mypy= "^1.11.1"
+mypy= "^1.17.1"
 
 [tool.mypy]
 disable_error_code = "import-untyped"
