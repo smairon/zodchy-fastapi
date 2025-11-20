@@ -1,3 +1,5 @@
+from typing import Any
+
 import pydantic
 
 
@@ -10,12 +12,12 @@ class FilterParam(QueryParam):
         self._param_type = param_type
 
     @property
-    def type(self):
+    def type(self) -> type:
         return self._param_type
 
 
 class OrderParam(QueryParam):
-    def __init__(self, *fields):
+    def __init__(self, *fields: Any):
         super().__init__()
         self.fields = fields
 
@@ -32,5 +34,9 @@ class FieldSetParam(QueryParam):
     pass
 
 
-class RequestModel(pydantic.BaseModel, extra="forbid"):
+class RequestData(pydantic.BaseModel, extra="forbid"):
     pass
+
+
+class RequestModel(pydantic.BaseModel, extra="forbid"):
+    data: RequestData | list[RequestData]
