@@ -59,7 +59,6 @@ class ModelParameter(Parameter):
         self._exclude_unset = exclude_unset
         super().__init__(type, name, serializer)
 
-
     def _default_serializer(self, value: RequestModel) -> SerializationResultType:
         data = value.data
         if isinstance(data, list):
@@ -94,13 +93,10 @@ class QueryParameter(Parameter):
         self._notation_parser = notation_parser
         self._fields_map = fields_map or {}
 
-
     def _default_serializer(self, value: RequestModel) -> dict[FieldName, Any]:
         return {
             self._fields_map.get(t[0], t[0]): t[1]
-            for t in self._notation_parser(
-                value.model_dump(exclude_none=True, exclude_unset=True), self._types_map
-            )
+            for t in self._notation_parser(value.model_dump(exclude_none=True, exclude_unset=True), self._types_map)
         }
 
     @cached_property
@@ -157,21 +153,18 @@ class DeclarativeAdapter:
     def route_params(self) -> dict[str, type]:
         return {p.name: p.type for p in self._parameters.values()}
 
-    def __call__(self, **kwargs: Any) -> list[Message] | None:
-        data: dict = {}
-        result = []
+    def __call__(self, **kwargs: Any) -> list[Message]:
+        data: dict[str, Any] = {}
+        result: list[dict[str, Any]] | None = None
         for name, value in kwargs.items():
             _data = self._parameters[name](value)
             if isinstance(_data, dict):
                 data |= _data
             else:
-                result = _data
+                result = list(_data)
         if result:
-            for item in result:
-                return [self._message_type(**{**data, **item})]
-        else:
-            return [self._message_type(**data)]
-        return None
+            return [self._message_type(**{**data, **item}) for item in result]
+        return [self._message_type(**data)]
 
 
 class BuilderAdapter:

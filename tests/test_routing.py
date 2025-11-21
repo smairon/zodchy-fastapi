@@ -54,7 +54,7 @@ class FakeResponseAdapter:
     def __init__(self) -> None:
         self.streams: list[AsyncMessageStreamContract] = []
 
-    def __call__(self, stream: AsyncMessageStreamContract) -> Response | None:
+    async def __call__(self, stream: AsyncMessageStreamContract) -> Response | None:
         self.streams.append(stream)
         return Response(status_code=201)
 
@@ -100,6 +100,7 @@ def test_router_registers_routes_on_fastapi_router() -> None:
 
     assert result is router
     assert any(getattr(r, "path", None) == "/items" for r in router.routes)
+
 
 @pytest.mark.asyncio
 async def test_endpoint_callable_runs_pipeline_and_response_adapter() -> None:

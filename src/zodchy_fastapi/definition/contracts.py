@@ -16,15 +16,15 @@ class RequestAdapterContract(Protocol):
 
 
 class ResponseAdapterContract(Protocol):
-    def __call__(self, stream: AsyncMessageStreamContract) -> Response | None: ...
-    def __iter__(self) -> Generator[tuple[int, type[ResponseModel]], None, None]: ...
+    async def __call__(self, stream: AsyncMessageStreamContract) -> Response | None: ...
+    def __iter__(self) -> Generator[tuple[int, type[ResponseModel] | None], None, None]: ...
 
 
 class EndpointContract(Protocol):
-    request_adapter: RequestAdapterContract
     response_adapter: ResponseAdapterContract
+    request_adapter: RequestAdapterContract
 
-    def __call__(self) -> Callable[..., Any]: ...
+    def __call__(self) -> Callable[..., Response]: ...
 
 
 class RouteContract(Protocol):

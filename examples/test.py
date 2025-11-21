@@ -1,8 +1,13 @@
+import dataclasses
 import uuid
+from typing import Any
+
 import fastapi
-from zodchy.codex.cqea import Command, Message, Event
 from fastapi.responses import JSONResponse
-from zodchy_fastapi import definition, routing, request, response, serializer
+from zodchy.codex.cqea import Command, Event, Message
+from zodchy.toolbox.processing import AsyncMessageStreamContract
+
+from zodchy_fastapi import definition, request, response, routing, serializer
 
 
 class CreateUserCommand(Command):
@@ -10,6 +15,7 @@ class CreateUserCommand(Command):
     last_name: str
 
 
+@dataclasses.dataclass
 class UserCreatedEvent(Event):
     user_id: str
     first_name: str
@@ -53,8 +59,11 @@ def make_request_class(data_class: type) -> type[definition.schema.request.Reque
     return new_class
 
 
-async def pipeline(*messages: Message):
-    async for message in messages:
+async def pipeline(*messages: Message, **kwargs: Any) -> AsyncMessageStreamContract:
+    for message in messages:
+        if not isinstance(message, CreateUserCommand):
+            continue
+
         yield UserCreatedEvent(
             user_id=str(uuid.uuid4()),
             first_name=message.first_name,
@@ -62,11 +71,7 @@ async def pipeline(*messages: Message):
         )
 
 
-def bootstrap_pipeline():
-    return pipeline
-
-
-def bootstrap_routes():
+def bootstrap_routes() -> list[routing.Route]:
     return [
         routing.Route(
             path="/users/{user_id}",
@@ -88,11 +93,11 @@ def bootstrap_routes():
                 response_adapter=response.DeclarativeAdapter(
                     response.Interceptor(
                         catch=UserCreatedEvent,
-                        response=(200, make_response_class(UserCreated)),
-                        format=(JSONResponse, serializer.ResponseMapping(lambda event: event.model_dump())),
+                        declare=(200, make_response_class(UserCreated)),
+                        response=(JSONResponse, serializer.ResponseMapping(lambda event: dataclasses.asdict)),
                     ),
                 ),
-                pipeline=bootstrap_pipeline(),
+                pipeline=pipeline,
             ),
         ),
     ]

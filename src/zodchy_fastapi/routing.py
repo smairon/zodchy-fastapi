@@ -89,28 +89,21 @@ class Endpoint:
         response_adapter: ResponseAdapterContract,
         pipeline: AsyncPipelineContract,
     ):
-        self._request_adapter = request_adapter
-        self._response_adapter = response_adapter
+        self.request_adapter = request_adapter
+        self.response_adapter = response_adapter
         self._pipeline = pipeline
-
-    @property
-    def request_adapter(self) -> RequestAdapterContract:
-        return self._request_adapter
-
-    @property
-    def response_adapter(self) -> ResponseAdapterContract:
-        return self._response_adapter
 
     def __call__(self) -> collections.abc.Callable[..., fastapi.Response]:
         async def func(**kwargs: Any) -> fastapi.Response | None:
-            tasks = self._request_adapter(**kwargs)
+            tasks = self.request_adapter(**kwargs)
             stream = await self._pipeline(*tasks)
-            return self._response_adapter(stream)
+            response = self.response_adapter(stream)
+            return await response
 
         sig = inspect.signature(func)
         _params = [v for v in sig.parameters.values() if v.name != "kwargs"]
         _exists = {v.name for v in _params}
-        for name, annotation in self._request_adapter.route_params().items():
+        for name, annotation in self.request_adapter.route_params().items():
             if name in _exists:
                 continue
             _exists.add(name)
@@ -123,4 +116,4 @@ class Endpoint:
                 )
             )
         func.__signature__ = sig.replace(parameters=_params, return_annotation=ResponseModel)  # type: ignore
-        return func # type: ignore
+        return func  # type: ignore

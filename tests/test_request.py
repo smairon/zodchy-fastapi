@@ -154,7 +154,7 @@ def test_declarative_adapter_merges_dict_parameters() -> None:
     assert result[0].payload == {"first": "alpha", "second": "beta"}
 
 
-def test_declarative_adapter_uses_first_item_from_sequence_parameter() -> None:
+def test_declarative_adapter_builds_message_for_each_sequence_item() -> None:
     adapter = DeclarativeAdapter(
         parameters=[DictParameter("base"), ListParameter("batch")],
         message_type=SampleMessage,
@@ -164,9 +164,12 @@ def test_declarative_adapter_uses_first_item_from_sequence_parameter() -> None:
     result = adapter(base="root", batch=payload)
 
     assert result is not None
-    assert len(result) == 1
-    assert isinstance(result[0], SampleMessage)
-    assert result[0].payload == {"base": "root", "detail": "a"}
+    assert len(result) == 2
+    assert all(isinstance(item, SampleMessage) for item in result)
+    first = cast(SampleMessage, result[0])
+    second = cast(SampleMessage, result[1])
+    assert first.payload == {"base": "root", "detail": "a"}
+    assert second.payload == {"base": "root", "detail": "b"}
 
 
 def test_builder_adapter_route_params_skip_request_annotation() -> None:
