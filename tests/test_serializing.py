@@ -4,7 +4,7 @@ from typing import Any
 import pytest
 
 from zodchy.codex.cqea import Message
-from zodchy_fastapi.serializer import ResponseMapping, Serializer
+from zodchy_fastapi.serializing import ResponseMapping, Serializer
 
 
 class PayloadMessage(Message):

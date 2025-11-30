@@ -1,6 +1,6 @@
 [project]
 name = "zodchy-fastapi"
-version = "2.0.4"
+version = "2.0.5"
 description = "Zodchy FastAPI - FastAPI integration for zodchy architecture"
 authors = [
     {name = "Smairon", email = "man@smairon.ru"},

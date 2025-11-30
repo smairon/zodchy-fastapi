@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 from zodchy.codex.cqea import Command, Event, Message
 from zodchy.toolbox.processing import AsyncMessageStreamContract
 
-from zodchy_fastapi import definition, request, response, routing, serializer
+from zodchy_fastapi import definition, request, response, routing, serializing
 
 
 class CreateUserCommand(Command):
@@ -94,7 +94,7 @@ def bootstrap_routes() -> list[routing.Route]:
                     response.Interceptor(
                         catch=UserCreatedEvent,
                         declare=(200, make_response_class(UserCreated)),
-                        response=(JSONResponse, serializer.ResponseMapping(lambda event: dataclasses.asdict)),
+                        response=(JSONResponse, serializing.ResponseMapping(lambda event: dataclasses.asdict)),
                     ),
                 ),
                 pipeline=pipeline,
