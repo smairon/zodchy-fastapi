@@ -55,14 +55,12 @@ class ModelParameter(Parameter):
         exclude: set[str] | None = None,
         exclude_none: bool = False,
         exclude_unset: bool = True,
-        type_cast_map: dict[str, type] | None = None,
         serializer: SerializerType | None = None,
     ):
         self._include = include
         self._exclude = exclude
         self._exclude_none = exclude_none
         self._exclude_unset = exclude_unset
-        self._type_cast_map = type_cast_map or {}
         super().__init__(type, name, serializer)
 
     def _default_serializer(self, value: RequestModel) -> SerializationResultType:
@@ -81,14 +79,6 @@ class ModelParameter(Parameter):
             exclude_none=self._exclude_none,
             exclude_unset=self._exclude_unset,
         )
-        if self._type_cast_map:
-            data = self._type_case(data)
-        return data
-
-    def _type_case(self, data: dict[str, Any]) -> dict[str, Any]:
-        for field_name, field_type in self._type_cast_map.items():
-            if field_name in data:
-                data[field_name] = field_type(data[field_name])
         return data
 
 
@@ -158,8 +148,9 @@ class RequestParameter(Parameter):
 
 
 class DeclarativeAdapter:
-    def __init__(self, message_type: type[Message]):
+    def __init__(self, message_type: type[Message], type_cast_map: dict[str, type] | None = None):
         self._message_type = message_type
+        self._type_cast_map = type_cast_map or {}
         self._parameters: dict[str, Parameter] = {}
 
     def __call__(self, **kwargs: Parameter) -> list[Message]:
@@ -172,8 +163,14 @@ class DeclarativeAdapter:
             else:
                 result = list(_data)
         if result:
-            return [self._message_type(**{**data, **item}) for item in result]
-        return [self._message_type(**data)]
+            return [self._message_type(**{**self._type_cast(data), **self._type_cast(item)}) for item in result]
+        return [self._message_type(**self._type_cast(data))]
+
+    def _type_cast(self, data: dict[str, Any]) -> dict[str, Any]:
+        for field_name, field_type in self._type_cast_map.items():
+            if field_name in data:
+                data[field_name] = field_type(data[field_name])
+        return data
 
 
 class RequestDescriber:

@@ -1,4 +1,5 @@
 from collections.abc import Iterable, Mapping
+from enum import Enum
 from typing import Any, cast
 
 import pytest
@@ -177,3 +178,118 @@ def test_declarative_adapter_builds_message_for_each_sequence_item() -> None:
     assert result is not None
     assert len(result) == 2
     assert all(isinstance(item, SampleMessage) for item in result)
+
+
+def test_declarative_adapter_type_cast_map_converts_string_to_int() -> None:
+    adapter = DeclarativeAdapter(
+        message_type=SampleMessage,
+        type_cast_map={"count": int},
+    )
+    param = DictParameter("count")
+    param.set_value("42")
+
+    result = adapter(count=param)
+
+    assert result is not None
+    assert len(result) == 1
+    message = cast(SampleMessage, result[0])
+    assert message.payload == {"count": 42}
+    assert isinstance(message.payload["count"], int)
+
+
+def test_declarative_adapter_type_cast_map_converts_multiple_fields() -> None:
+    adapter = DeclarativeAdapter(
+        message_type=SampleMessage,
+        type_cast_map={"count": int, "price": float},
+    )
+    count_param = DictParameter("count")
+    count_param.set_value("100")
+    price_param = DictParameter("price")
+    price_param.set_value("19.99")
+
+    result = adapter(count=count_param, price=price_param)
+
+    assert result is not None
+    assert len(result) == 1
+    message = cast(SampleMessage, result[0])
+    assert message.payload == {"count": 100, "price": 19.99}
+    assert isinstance(message.payload["count"], int)
+    assert isinstance(message.payload["price"], float)
+
+
+def test_declarative_adapter_type_cast_map_ignores_missing_fields() -> None:
+    adapter = DeclarativeAdapter(
+        message_type=SampleMessage,
+        type_cast_map={"missing_field": int, "present_field": int},
+    )
+    param = DictParameter("present_field")
+    param.set_value("123")
+
+    result = adapter(present_field=param)
+
+    assert result is not None
+    assert len(result) == 1
+    message = cast(SampleMessage, result[0])
+    assert message.payload == {"present_field": 123}
+    assert "missing_field" not in message.payload
+
+
+def test_declarative_adapter_type_cast_map_with_list_payload() -> None:
+    adapter = DeclarativeAdapter(
+        message_type=SampleMessage,
+        type_cast_map={"foo": str, "bar": str},
+    )
+    payload = [SampleRequestData(foo=1, bar=2), SampleRequestData(foo=3, bar=4)]
+    request_model = _sample_request(data=cast(list[RequestData], payload))
+    model_param = ModelParameter(SampleRequestModel, exclude_unset=False)
+    model_param.set_value(request_model)
+
+    result = adapter(model=model_param)
+
+    assert result is not None
+    assert len(result) == 2
+    messages = [cast(SampleMessage, item) for item in result]
+    assert messages[0].payload["foo"] == "1"
+    assert messages[0].payload["bar"] == "2"
+    assert messages[1].payload["foo"] == "3"
+    assert messages[1].payload["bar"] == "4"
+    assert all(isinstance(msg.payload["foo"], str) for msg in messages)
+    assert all(isinstance(msg.payload["bar"], str) for msg in messages)
+
+
+def test_declarative_adapter_type_cast_map_empty_dict() -> None:
+    adapter = DeclarativeAdapter(
+        message_type=SampleMessage,
+        type_cast_map={},
+    )
+    param = DictParameter("value")
+    param.set_value("unchanged")
+
+    result = adapter(value=param)
+
+    assert result is not None
+    assert len(result) == 1
+    message = cast(SampleMessage, result[0])
+    assert message.payload == {"value": "unchanged"}
+
+
+def test_declarative_adapter_type_cast_map_casts_to_enum() -> None:
+    class Status(Enum):
+        ACTIVE = "active"
+        INACTIVE = "inactive"
+        PENDING = "pending"
+
+    adapter = DeclarativeAdapter(
+        message_type=SampleMessage,
+        type_cast_map={"status": Status},
+    )
+    param = DictParameter("status")
+    param.set_value("active")
+
+    result = adapter(status=param)
+
+    assert result is not None
+    assert len(result) == 1
+    message = cast(SampleMessage, result[0])
+    assert message.payload["status"] == Status.ACTIVE
+    assert isinstance(message.payload["status"], Status)
