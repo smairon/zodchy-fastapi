@@ -1,14 +1,14 @@
 import abc
-import inspect
 from collections.abc import Callable, Collection
 from functools import cached_property
-from typing import Any, TypeAlias
+from typing import Any, TypeAlias, cast
 
 from fastapi import Request
 from zodchy.codex.cqea import Message
 from zodchy.toolbox.notation import ParserContract as QueryNotationParserContract
 
-from .definition.schema.request import FilterParam, RequestModel
+from .definition.contracts import RequestAdapterContract, RequestParameterContract
+from .definition.schema.request import FilterParam, RequestData, RequestModel
 
 FieldName: TypeAlias = str
 SerializationResultType: TypeAlias = dict[FieldName, Any] | list[dict[FieldName, Any]]
@@ -24,18 +24,22 @@ class Parameter(abc.ABC):
     ):
         self._name = name
         self._type = type
+        self._value = ...
         self._serializer = serializer or self._default_serializer
 
-    @property
-    def name(self) -> str:
+    def set_value(self, value: Any) -> None:
+        self._value = value
+
+    def get_name(self) -> str:
         return self._name
 
-    @property
-    def type(self) -> type:
+    def get_type(self) -> type:
         return self._type
 
-    def __call__(self, value: Any) -> SerializationResultType:
-        return self._serializer(value)
+    def __call__(self) -> SerializationResultType:
+        if self._value is ...:
+            raise ValueError(f"No value set for parameter {self._name}")
+        return self._serializer(self._value)  # type: ignore
 
     @abc.abstractmethod
     def _default_serializer(self, value: Any) -> SerializationResultType:
@@ -51,33 +55,41 @@ class ModelParameter(Parameter):
         exclude: set[str] | None = None,
         exclude_none: bool = False,
         exclude_unset: bool = True,
+        type_cast_map: dict[str, type] | None = None,
         serializer: SerializerType | None = None,
     ):
         self._include = include
         self._exclude = exclude
         self._exclude_none = exclude_none
         self._exclude_unset = exclude_unset
+        self._type_cast_map = type_cast_map or {}
         super().__init__(type, name, serializer)
 
     def _default_serializer(self, value: RequestModel) -> SerializationResultType:
         data = value.data
         if isinstance(data, list):
-            return [
-                item.model_dump(
-                    include=self._include,
-                    exclude=self._exclude,
-                    exclude_none=self._exclude_none,
-                    exclude_unset=self._exclude_unset,
-                )
-                for item in data
-            ]
+            return [self._dump_model(cast(RequestModel, item)) for item in data]
         else:
-            return value.model_dump(
-                include=self._include,
-                exclude=self._exclude,
-                exclude_none=self._exclude_none,
-                exclude_unset=self._exclude_unset,
-            )
+            return self._dump_model(cast(RequestModel, data))
+
+    def _dump_model(self, model: RequestModel | RequestData | dict) -> dict[str, Any]:
+        if isinstance(model, dict):
+            return model
+        data = model.model_dump(
+            include=self._include,
+            exclude=self._exclude,
+            exclude_none=self._exclude_none,
+            exclude_unset=self._exclude_unset,
+        )
+        if self._type_cast_map:
+            data = self._type_case(data)
+        return data
+
+    def _type_case(self, data: dict[str, Any]) -> dict[str, Any]:
+        for field_name, field_type in self._type_cast_map.items():
+            if field_name in data:
+                data[field_name] = field_type(data[field_name])
+        return data
 
 
 class QueryParameter(Parameter):
@@ -127,7 +139,7 @@ class RouteParameter(Parameter):
     def _default_serializer(self, value: Any) -> dict[FieldName, Any]:
         if self._type_cast:
             value = self._type(value)
-        return {self.name: value}
+        return {self.get_name(): value}
 
 
 class RequestParameter(Parameter):
@@ -141,23 +153,20 @@ class RequestParameter(Parameter):
 
     def _default_serializer(self, value: Request) -> dict[FieldName, Request]:
         raise NotImplementedError(
-            f"No default handler function for {self.name}. You must provide a custom handler function or do not use this parameter."
+            f"No default handler function for {self.get_name()}. You must provide a custom handler function or do not use this parameter."
         )
 
 
 class DeclarativeAdapter:
-    def __init__(self, parameters: Collection[Parameter], message_type: type[Message]):
+    def __init__(self, message_type: type[Message]):
         self._message_type = message_type
-        self._parameters = {p.name: p for p in parameters}
+        self._parameters: dict[str, Parameter] = {}
 
-    def route_params(self) -> dict[str, type]:
-        return {p.name: p.type for p in self._parameters.values()}
-
-    def __call__(self, **kwargs: Any) -> list[Message]:
+    def __call__(self, **kwargs: Parameter) -> list[Message]:
         data: dict[str, Any] = {}
         result: list[dict[str, Any]] | None = None
-        for name, value in kwargs.items():
-            _data = self._parameters[name](value)
+        for _, parameter in kwargs.items():
+            _data = parameter()
             if isinstance(_data, dict):
                 data |= _data
             else:
@@ -167,16 +176,17 @@ class DeclarativeAdapter:
         return [self._message_type(**data)]
 
 
-class BuilderAdapter:
+class RequestDescriber:
     def __init__(
         self,
-        builder: Callable[..., list[Message]],
+        schema: Collection[RequestParameterContract],
+        adapter: RequestAdapterContract,
     ):
-        self._builder = builder
+        self._adapter = adapter
+        self._schema = schema
 
-    def route_params(self) -> dict[str, type]:
-        parameters = inspect.signature(self._builder).parameters
-        return {p.name: p.annotation for p in parameters.values() if p.annotation is not Request}
+    def get_adapter(self) -> RequestAdapterContract:
+        return self._adapter
 
-    def __call__(self, **kwargs: Any) -> list[Message]:
-        return self._builder(**kwargs)
+    def get_schema(self) -> Collection[RequestParameterContract]:
+        return self._schema

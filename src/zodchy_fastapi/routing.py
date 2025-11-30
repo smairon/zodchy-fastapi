@@ -3,15 +3,36 @@ import inspect
 from typing import Any
 
 import fastapi
+from zodchy.codex.cqea import Message
 from zodchy.toolbox.processing import AsyncPipelineContract
 
 from .definition.contracts import (
+    AsyncMessageStreamContract,
     EndpointContract,
-    RequestAdapterContract,
-    ResponseAdapterContract,
+    RequestDescriberContract,
+    RequestParameterContract,
+    ResponseDescriberContract,
     ResponseModel,
     RouteContract,
 )
+
+
+class Batch:
+    def __init__(
+        self,
+        *messages: Message,
+    ):
+        self._messages = list(messages) if messages else []
+
+    def append(self, message: Message) -> None:
+        self._messages.append(message)
+
+    @property
+    def message_type(self) -> type[Message] | None:
+        return type(self._messages[0]) if self._messages else None
+
+    def __iter__(self) -> collections.abc.Generator[Message, None, None]:
+        yield from self._messages
 
 
 class Route:
@@ -52,7 +73,8 @@ class Route:
     @property
     def responses(self) -> dict[int, dict[str, Any]]:
         return {
-            status_code: {"model": response_model} for status_code, response_model in self._endpoint.response_adapter
+            status_code: {"model": response_model}
+            for status_code, response_model in self._endpoint.response.get_schema()
         }
 
 
@@ -85,35 +107,59 @@ class Router:
 class Endpoint:
     def __init__(
         self,
-        request_adapter: RequestAdapterContract,
-        response_adapter: ResponseAdapterContract,
+        request: RequestDescriberContract,
+        response: ResponseDescriberContract,
         pipeline: AsyncPipelineContract,
     ):
-        self.request_adapter = request_adapter
-        self.response_adapter = response_adapter
+        self.request = request
+        self.response = response
         self._pipeline = pipeline
 
     def __call__(self) -> collections.abc.Callable[..., fastapi.Response]:
         async def func(**kwargs: Any) -> fastapi.Response | None:
-            tasks = self.request_adapter(**kwargs)
-            stream = await self._pipeline(*tasks)
-            response = self.response_adapter(stream)
-            return await response
+            params: dict[str, RequestParameterContract] = {}
+            for parameter in self.request.get_schema():
+                if parameter.get_name() in kwargs:
+                    parameter.set_value(kwargs[parameter.get_name()])
+                    params[parameter.get_name()] = parameter
+            tasks = self.request.get_adapter()(**params)
+            stream = self._pipeline(*tasks)
+            async for batch in self._group_stream(stream):
+                for interceptor in self.response.get_interceptors():
+                    if batch.message_type is not None and issubclass(
+                        batch.message_type, interceptor.get_desired_type()
+                    ):
+                        return interceptor(*batch)
+            return None
 
         sig = inspect.signature(func)
         _params = [v for v in sig.parameters.values() if v.name != "kwargs"]
         _exists = {v.name for v in _params}
-        for name, annotation in self.request_adapter.route_params().items():
-            if name in _exists:
+        for parameter in self.request.get_schema():
+            if parameter.get_name() in _exists:
                 continue
-            _exists.add(name)
+            _exists.add(parameter.get_name())
             _params.append(
                 inspect.Parameter(
-                    name,
+                    parameter.get_name(),
                     inspect.Parameter.POSITIONAL_OR_KEYWORD,
-                    annotation=annotation,
+                    annotation=parameter.get_type(),
                     default=inspect.Parameter.empty,
                 )
             )
         func.__signature__ = sig.replace(parameters=_params, return_annotation=ResponseModel)  # type: ignore
         return func  # type: ignore
+
+    async def _group_stream(self, stream: AsyncMessageStreamContract) -> collections.abc.AsyncGenerator[Batch, None]:
+        batch = None
+        async for message in stream:
+            if batch is None:
+                batch = Batch(message)
+                continue
+            if batch.message_type is not None and isinstance(type(message), batch.message_type):
+                batch.append(message)
+            else:
+                yield batch
+                batch = Batch(message)
+        if batch is not None:
+            yield batch

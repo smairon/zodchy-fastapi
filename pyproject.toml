@@ -1,6 +1,6 @@
 [project]
 name = "zodchy-fastapi"
-version = "2.0.1"
+version = "2.0.3"
 description = "Zodchy FastAPI - FastAPI integration for zodchy architecture"
 authors = [
     {name = "Smairon", email = "man@smairon.ru"},
@@ -137,6 +137,7 @@ warn_no_return = true
 warn_unreachable = true
 strict_equality = true
 show_error_codes = true
+disable_error_code = ["import-untyped"]
 
 # pytest configuration
 [tool.pytest.ini_options]

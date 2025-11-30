@@ -78,8 +78,8 @@ def bootstrap_routes() -> list[routing.Route]:
             methods=["POST"],
             tags=["test"],
             endpoint=routing.Endpoint(
-                request_adapter=request.DeclarativeAdapter(
-                    parameters=[
+                request=request.RequestDescriber(
+                    schema=(
                         request.ModelParameter(
                             type=make_request_class(CreateUser),
                         ),
@@ -87,10 +87,10 @@ def bootstrap_routes() -> list[routing.Route]:
                             name="user_id",
                             type=uuid.UUID,
                         ),
-                    ],
-                    message_type=CreateUserCommand,
+                    ),
+                    adapter=request.DeclarativeAdapter(CreateUserCommand),
                 ),
-                response_adapter=response.DeclarativeAdapter(
+                response=response.ResponseDescriber(
                     response.Interceptor(
                         catch=UserCreatedEvent,
                         declare=(200, make_response_class(UserCreated)),

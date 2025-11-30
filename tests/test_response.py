@@ -7,7 +7,8 @@ from fastapi.responses import JSONResponse, Response
 
 from zodchy.codex.cqea import Error, Message
 from zodchy_fastapi.definition.schema.response import ErrorResponseModel, ResponseModel
-from zodchy_fastapi.response import Batch, DeclarativeAdapter, ErrorInterceptor, Interceptor
+from zodchy_fastapi.response import ErrorInterceptor, Interceptor, ResponseDescriber
+from zodchy_fastapi.routing import Batch
 
 
 class PayloadMessage(Message):
@@ -76,7 +77,7 @@ def test_error_interceptor_uses_mapping_for_status_code() -> None:
 
     assert response.status_code == 422
     assert json.loads(response.body)["values"] == [None]
-    assert interceptor.response_model is ErrorResponseModel
+    assert interceptor.get_response_model() is ErrorResponseModel
 
 
 def test_error_interceptor_defaults_to_internal_error_code() -> None:
@@ -102,57 +103,41 @@ def test_batch_accumulates_type_information() -> None:
     assert payload_values == [1, 2]
 
 
-def test_declarative_adapter_iteration_exposes_interceptor_declarations() -> None:
+def test_response_describer_iteration_exposes_interceptor_declarations() -> None:
     interceptor_one = Interceptor(PayloadMessage, declare=(205, ResponseModel))
     interceptor_two = Interceptor(PayloadMessage, declare=206)
-    adapter = DeclarativeAdapter(interceptor_one, interceptor_two)
+    describer = ResponseDescriber(interceptor_one, interceptor_two)
 
-    assert list(adapter) == [(205, ResponseModel), (206, None)]
+    assert list(describer.get_schema()) == [(205, ResponseModel), (206, None)]
 
 
-@pytest.mark.asyncio
-async def test_declarative_adapter_processes_stream_and_returns_response() -> None:
+def test_response_describer_returns_interceptors() -> None:
     recorded: list[tuple[Message, ...]] = []
     interceptor = Interceptor(
         catch=PayloadMessage,
         declare=(207, ResponseModel),
         response=(JSONResponse, serializer_factory(recorded)),
     )
-    adapter = DeclarativeAdapter(interceptor)
+    describer = ResponseDescriber(interceptor)
 
-    response = await adapter(DummyStream(PayloadMessage(1), PayloadMessage(2)))
+    interceptors = list(describer.get_interceptors())
+    assert len(interceptors) == 1
+    assert interceptors[0] is interceptor
+
+
+def test_interceptor_handles_messages_correctly() -> None:
+    recorded: list[tuple[Message, ...]] = []
+    interceptor = Interceptor(
+        catch=PayloadMessage,
+        declare=(207, ResponseModel),
+        response=(JSONResponse, serializer_factory(recorded)),
+    )
+
+    response = interceptor(PayloadMessage(1), PayloadMessage(2))
 
     assert response is not None
     assert response.status_code == 207
-    assert json.loads(response.body)["values"] == [1]
+    assert json.loads(response.body)["values"] == [1, 2]
     assert recorded
     assert isinstance(recorded[0][0], PayloadMessage)
     assert recorded[0][0].value == 1
-
-
-@pytest.mark.asyncio
-async def test_declarative_adapter_returns_none_when_no_interceptor_matches() -> None:
-    other_interceptor = Interceptor(catch=PayloadError)
-    adapter = DeclarativeAdapter(other_interceptor)
-
-    response = await adapter(DummyStream(PayloadMessage(1)))
-
-    assert response is None
-
-
-@pytest.mark.asyncio
-async def test_group_stream_yields_all_batches() -> None:
-    interceptor = Interceptor(PayloadMessage)
-    adapter = DeclarativeAdapter(interceptor)
-    stream = DummyStream(PayloadMessage(1), PayloadMessage(2))
-
-    batches = [batch async for batch in adapter._group_stream(stream)]
-
-    assert len(batches) == 2
-    batch_values = []
-    for batch in batches:
-        payload_batch = []
-        for msg in batch:
-            payload_batch.append(cast(PayloadMessage, msg).value)
-        batch_values.append(payload_batch)
-    assert batch_values == [[1], [2]]
