@@ -1,12 +1,15 @@
-from collections.abc import Callable, Collection, Generator
+from collections.abc import Callable, Collection, Generator, Mapping
 from enum import Enum
 from typing import Any, Protocol, TypeAlias
 
 from fastapi.responses import Response
 from zodchy.codex.cqea import Message
-from zodchy.toolbox.processing import AsyncMessageStreamContract
+from zodchy.toolbox.processing import AsyncMessageStreamContract, AsyncPipelineContract
 
 from .schema.response import ResponseModel
+
+PypelineCodeType: TypeAlias = str
+PypelineRegistryContract: TypeAlias = Mapping[PypelineCodeType, AsyncPipelineContract]
 
 
 class RequestParameterContract(Protocol):
@@ -48,7 +51,7 @@ class EndpointContract(Protocol):
     request: RequestDescriberContract
     response: ResponseDescriberContract
 
-    def __call__(self) -> Callable[..., Response]: ...
+    def __call__(self, pipeline_registry: PypelineRegistryContract) -> Callable[..., Response]: ...
 
 
 class RouteContract(Protocol):

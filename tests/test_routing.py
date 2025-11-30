@@ -111,31 +111,42 @@ class FakeResponseDescriber:
         return [(200, ResponseModel)]
 
 
-def _build_endpoint() -> (
-    tuple[Endpoint, FakeRequestAdapter, FakeResponseDescriber, FakePipeline, FakeParameter, FakeInterceptor]
-):
+PIPELINE_CODE = "test_pipeline"
+
+
+def _build_endpoint() -> tuple[
+    Endpoint,
+    FakeRequestAdapter,
+    FakeResponseDescriber,
+    FakePipeline,
+    FakeParameter,
+    FakeInterceptor,
+    dict[str, FakePipeline],
+]:
     request_adapter = FakeRequestAdapter()
     parameter = FakeParameter("item_id", int)
     request_describer = FakeRequestDescriber(request_adapter, [parameter])
     interceptor = FakeInterceptor()
     response_describer = FakeResponseDescriber(interceptor)
     pipeline = FakePipeline()
+    pipeline_registry = {PIPELINE_CODE: pipeline}
     return (
         Endpoint(
             cast(RequestDescriberContract, request_describer),
             cast(ResponseDescriberContract, response_describer),
-            pipeline,
+            PIPELINE_CODE,
         ),
         request_adapter,
         response_describer,
         pipeline,
         parameter,
         interceptor,
+        pipeline_registry,
     )
 
 
 def test_route_exposes_core_properties_and_responses() -> None:
-    endpoint, _, response_describer, _, _, _ = _build_endpoint()
+    endpoint, _, response_describer, _, _, _, _ = _build_endpoint()
     endpoint_contract = cast(EndpointContract, endpoint)
     route = Route(
         path="/items",
@@ -155,11 +166,11 @@ def test_route_exposes_core_properties_and_responses() -> None:
 
 
 def test_router_registers_routes_on_fastapi_router() -> None:
-    endpoint, _, _, _, _, _ = _build_endpoint()
+    endpoint, _, _, _, _, _, pipeline_registry = _build_endpoint()
     endpoint_contract = cast(EndpointContract, endpoint)
     route = Route("/items", ["GET"], ["items"], endpoint_contract)
     router = APIRouter()
-    custom_router = Router(router)
+    custom_router = Router(router, pipeline_registry)
 
     result = custom_router([cast(RouteContract, route)])
 
@@ -169,8 +180,10 @@ def test_router_registers_routes_on_fastapi_router() -> None:
 
 @pytest.mark.asyncio
 async def test_endpoint_callable_runs_pipeline_and_response_adapter() -> None:
-    endpoint, request_adapter, response_describer, pipeline, parameter, interceptor = _build_endpoint()
-    handler = endpoint()
+    endpoint, request_adapter, response_describer, pipeline, parameter, interceptor, pipeline_registry = (
+        _build_endpoint()
+    )
+    handler = endpoint(pipeline_registry)
 
     signature = inspect.signature(handler)
     assert "item_id" in signature.parameters
