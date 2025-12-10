@@ -24,6 +24,7 @@ class SampleRequestData(RequestData):
 
 
 class SampleRequestModel(RequestModel):
+    data: SampleRequestData | list[SampleRequestData]
     filter_value: int
     alias_field: str
 

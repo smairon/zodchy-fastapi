@@ -38,5 +38,5 @@ class RequestData(pydantic.BaseModel, extra="forbid"):
     pass
 
 
-class RequestModel(pydantic.BaseModel, extra="forbid"):
-    data: RequestData | list[RequestData]
+class RequestModel(pydantic.BaseModel):
+    pass

@@ -1,9 +1,9 @@
 import abc
 from collections.abc import Callable, Collection
 from functools import cached_property
-from typing import Any, TypeAlias, cast
+from typing import Annotated, Any, TypeAlias, cast
 
-from fastapi import Request
+from fastapi import Depends, Request
 from zodchy.codex.cqea import Message
 from zodchy.toolbox.notation import ParserContract as QueryNotationParserContract
 
@@ -64,7 +64,7 @@ class ModelParameter(Parameter):
         super().__init__(type, name, serializer)
 
     def _default_serializer(self, value: RequestModel) -> SerializationResultType:
-        data = value.data
+        data = value.data if hasattr(value, "data") else value  # type: ignore
         if isinstance(data, list):
             return [self._dump_model(cast(RequestModel, item)) for item in data]
         else:
@@ -100,6 +100,9 @@ class QueryParameter(Parameter):
             self._fields_map.get(t[0], t[0]): t[1]
             for t in self._notation_parser(value.model_dump(exclude_none=True, exclude_unset=True), self._types_map)
         }
+
+    def get_type(self) -> Annotated[type, Depends]:
+        return Annotated[self._type, Depends()]  # type: ignore
 
     @cached_property
     def _types_map(self) -> dict[str, type]:

@@ -92,7 +92,7 @@ class Endpoint:
             if batch is None:
                 batch = Batch(message)
                 continue
-            if batch.message_type is not None and isinstance(type(message), batch.message_type):
+            if batch.message_type is not None and isinstance(message, batch.message_type):
                 batch.append(message)
             else:
                 yield batch
